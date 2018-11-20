@@ -37,7 +37,7 @@ class MessageReceiver {
     consumer.subscribe(Collections.singleton(OUTPUT_TOPIC));
     int received = 0;
     while(received < expected) {
-      final ConsumerRecords<Long, String> records = consumer.poll(Duration.of(Long.MAX_VALUE, ChronoUnit.MILLIS));
+      final ConsumerRecords<Long, String> records = consumer.poll(Duration.of(1000, ChronoUnit.MILLIS));
       received += records.count();
       log.info("Received {} values", received);
     }

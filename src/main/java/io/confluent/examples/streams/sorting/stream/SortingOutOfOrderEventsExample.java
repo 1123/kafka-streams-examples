@@ -15,28 +15,17 @@
  */
 package io.confluent.examples.streams.sorting.stream;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import io.confluent.examples.streams.sorting.driver.SortingOutOfORderEventsExampleDriver;
-import org.apache.kafka.common.serialization.Deserializer;
 import org.apache.kafka.common.serialization.Serdes;
-import org.apache.kafka.common.serialization.Serializer;
 import org.apache.kafka.common.utils.Time;
 import org.apache.kafka.streams.KafkaStreams;
 import org.apache.kafka.streams.StreamsBuilder;
 import org.apache.kafka.streams.StreamsConfig;
-import org.apache.kafka.streams.kstream.KStream;
-import org.apache.kafka.streams.kstream.Printed;
-import org.apache.kafka.streams.kstream.Produced;
 import org.apache.kafka.streams.state.KeyValueBytesStoreSupplier;
 import org.apache.kafka.streams.state.StoreBuilder;
 import org.apache.kafka.streams.state.Stores;
 import org.apache.kafka.streams.state.internals.KeyValueStoreBuilder;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
-import java.io.IOException;
-import java.util.Map;
 import java.util.Properties;
 
 /**
@@ -79,11 +68,9 @@ import java.util.Properties;
 
 public class SortingOutOfOrderEventsExample {
 
-    private static final Logger log = LoggerFactory.getLogger(SortingOutOfOrderEventsExample.class);
     static final String STATE_STORE_NAME = "reorder-state-store";
     public static final String OUTPUT_TOPIC = "sorted-messages";
     public static final String INPUT_TOPIC = "out-of-order-messages";
-
 
     private static Properties streamsConfiguration(String bootstrapServers) {
         final Properties streamsConfiguration = new Properties();
@@ -97,9 +84,6 @@ public class SortingOutOfOrderEventsExample {
         return streamsConfiguration;
     }
 
-
-    private static ObjectMapper objectMapper = new ObjectMapper();
-
     private static StoreBuilder sortedMessagesStoreBuilder() {
         KeyValueBytesStoreSupplier store = Stores.persistentKeyValueStore(STATE_STORE_NAME);
         return new KeyValueStoreBuilder<>(
@@ -111,14 +95,12 @@ public class SortingOutOfOrderEventsExample {
     }
 
     public static void main(final String[] args) {
+        final String bootstrapServers = args.length > 0 ? args[0] : "localhost:9092";
         final StreamsBuilder builder = new StreamsBuilder();
         builder.addStateStore(sortedMessagesStoreBuilder());
 
         SortingOutOfOrderEventsStream sortingOutOfOrderEventsStream = new SortingOutOfOrderEventsStream();
-
         sortingOutOfOrderEventsStream.createStream(builder);
-
-        final String bootstrapServers = args.length > 0 ? args[0] : "localhost:9092";
         final KafkaStreams streams = new KafkaStreams(builder.build(), streamsConfiguration(bootstrapServers));
 
         streams.cleanUp();
@@ -127,87 +109,6 @@ public class SortingOutOfOrderEventsExample {
         Runtime.getRuntime().addShutdownHook(new Thread(streams::close));
     }
 
-}
-
-class SortingOutOfOrderEventsStream {
-
-    MessageDeserializer messageDeserializer = new MessageDeserializer();
-
-    void createStream(StreamsBuilder builder) {
-        final KStream<Integer, String> messages = builder.stream(SortingOutOfOrderEventsExample.INPUT_TOPIC);
-        messages.print(Printed.toSysOut());
-        KStream<Long, Message> sorted = messages
-                // the topic is ignored
-                .mapValues(value -> messageDeserializer.deserialize("foo", value.getBytes()))
-                .transform(
-                        new MessageReorderTransformerSupplier(SortingOutOfOrderEventsExample.STATE_STORE_NAME),
-                        SortingOutOfOrderEventsExample.STATE_STORE_NAME
-                );
-        sorted.to(SortingOutOfOrderEventsExample.OUTPUT_TOPIC, Produced.with(Serdes.Long(), new MessageSerde()));
-    }
-
-}
-
-
-class MessageSerde extends Serdes.WrapperSerde<Message> {
-    MessageSerde() {
-        super(new MessageSerializer(), new MessageDeserializer());
-    }
-}
-
-class MessageSerializer implements Serializer<Message> {
-
-    private static final Logger log = LoggerFactory.getLogger(MessageSerializer.class);
-
-    private ObjectMapper objectMapper = new ObjectMapper();
-
-    @Override
-    public void configure(Map<String, ?> map, boolean b) {
-        // nothing to do
-    }
-
-    @Override
-    public byte[] serialize(String s, Message message) {
-        try {
-            return objectMapper.writeValueAsBytes(message);
-        } catch (JsonProcessingException e) {
-            log.warn(e.getMessage());
-        }
-        return new byte[0];
-    }
-
-    @Override
-    public void close() {
-        // nothing to do
-    }
-}
-
-
-class MessageDeserializer implements Deserializer<Message> {
-
-    private static final Logger log = LoggerFactory.getLogger(MessageSerializer.class);
-
-    private ObjectMapper objectMapper = new ObjectMapper();
-
-    @Override
-    public void configure(Map<String, ?> map, boolean b) {
-        // nothing to do
-    }
-
-    @Override
-    public Message deserialize(String s, byte[] bytes) {
-        try {
-            return objectMapper.readValue(bytes, Message.class);
-        } catch (IOException e) {
-            log.warn(e.getMessage());
-        }
-        return null;
-    }
-
-    @Override
-    public void close() {
-        // nothing to do
-    }
 }
 
 
