@@ -18,10 +18,7 @@ package io.confluent.examples.streams;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.confluent.common.utils.TestUtils;
-import lombok.AllArgsConstructor;
-import lombok.Data;
-import lombok.EqualsAndHashCode;
-import lombok.NoArgsConstructor;
+import lombok.*;
 import org.apache.kafka.common.serialization.Serdes;
 import org.apache.kafka.common.utils.Time;
 import org.apache.kafka.streams.KafkaStreams;
@@ -35,8 +32,11 @@ import org.apache.kafka.streams.state.KeyValueStore;
 import org.apache.kafka.streams.state.internals.KeyValueStoreBuilder;
 import org.apache.kafka.streams.state.internals.RocksDbKeyValueBytesStoreSupplier;
 
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.List;
 import java.util.Properties;
+import java.util.function.Function;
 import java.util.regex.Pattern;
 
 /**
@@ -108,17 +108,45 @@ public class SequenceExample {
     final KStream<String, String> textLines = builder.stream(inputTopic);
 
     textLines
-      .transform(new SequenceTransformerSupplier(), "sensor-readings")
+      .transform(new SequenceTransformerSupplier(
+              Arrays.asList(
+                      SeqElement.builder().predicate(keyValue -> keyValue.value.equals("SHELF")).build(),
+                      SeqElement.builder()
+                              .predicate(keyValue -> keyValue.value.equals("COUNTER"))
+                              .negated(true).build(),
+                      SeqElement.builder().predicate(keyValue -> keyValue.value.equals("EXIT")).build()
+              )
+      ), "sensor-readings")
       .to(outputTopic);
   }
 
 }
 
+@Builder
+class SeqElement {
+  boolean negated = false;
+  Function<KeyValue<String, String>, Boolean> predicate;
+}
+
+@Data
+@NoArgsConstructor
+class SequenceState {
+
+  int position = 0;
+  long timestamp;
+  List<String> values = new ArrayList<>();
+
+}
 class SequenceTransformer implements Transformer<String, String, KeyValue<String, String>> {
 
+  private final List<SeqElement> elements;
   private KeyValueStore<String, String> store;
   private ProcessorContext context;
   private ObjectMapper objectMapper = new ObjectMapper();
+
+  public SequenceTransformer(List<SeqElement> elements) {
+    this.elements = elements;
+  }
 
   @Override
   public void init(ProcessorContext context) {
@@ -129,39 +157,66 @@ class SequenceTransformer implements Transformer<String, String, KeyValue<String
   @Override
   public KeyValue<String, String> transform(String key, String value) {
     String old = store.get(key);
-    SensorData sensorData;
+    SequenceState state;
     try {
       if (old == null) {
-        sensorData = new SensorData();
+        // first message that is being processed
+        state = new SequenceState();
       } else {
-        sensorData = objectMapper.readValue(old, SensorData.class);
+        // not the first message
+        state = objectMapper.readValue(old, SequenceState.class);
       }
-      switch (value) {
-        case "SHELF":
-          sensorData.setLastShelfTimestamp(context.timestamp());
-          store.put(key, objectMapper.writeValueAsString(sensorData));
-          return null;
-        case "COUNTER":
-          sensorData.setLastCounterTimestamp(context.timestamp());
-          store.put(key, objectMapper.writeValueAsString(sensorData));
-          return null;
-        case "EXIT":
-          if (sensorData.getLastExitTimestamp() > 0L) return null; // The product had already left the shop before.
-          sensorData.setLastExitTimestamp(context.timestamp());
-          if (sensorData.getLastShelfTimestamp() == 0L) {
-            throw new RuntimeException("Invalid sequence of events: the product has never been seen on a shelf. ");
+      state.timestamp = context.timestamp();
+      Function<KeyValue<String, String>, Boolean> predicate = elements.get(state.position).predicate;
+      if (elements.get(state.position).negated) {
+        if (predicate.apply(new KeyValue<>(key, value))) {
+          // a negated element matched. Therefore we start from scratch.
+          // no match found
+          store.put(key, null);
+          return null; // negated element matched
+        }
+        Function<KeyValue<String, String>, Boolean> nextPredicate = elements.get(state.position + 1).predicate;
+        if (nextPredicate.apply(new KeyValue<>(key, value))) {
+          state.position += 2; // skip over the negated element and the following element
+          // TODO: what about two consecutive negations? Is there a use case for this?
+          state.values.add("NEGATED ELEMENT -- NO MATCH");
+          state.values.add(value);
+          store.put(key, objectMapper.writeValueAsString(state));
+          if (state.position == elements.size()) {
+            // last element. Match found. Start from scratch.
+            store.put(key, null);
+            // Emit the match downstream.
+            // negated element did not match, but the following positive element matched;
+            // end of sequence reached.
+            return new KeyValue<>(key, objectMapper.writeValueAsString(state));
           }
-          store.put(key, objectMapper.writeValueAsString(sensorData));
-          if (sensorData.getLastCounterTimestamp() == 0L) {
-            // Shop lifting detected -- the product has not been seen at the counter.
-            return new KeyValue<>(key, objectMapper.writeValueAsString(sensorData));
-          } else {
-            return null;
-          }
-        default:
-          throw new RuntimeException("Invalid sensor reading value");
+          // negated element did not match, but the following positive element matched;
+          // end of sequence not yet reached.
+          return null;
+        }
+        // negated element did not match, and the following positive element matched neither.
+        // position does not advance.
+        return null;
       }
-    } catch (JsonProcessingException e) {
+      else { // not negated
+        if (predicate.apply(new KeyValue<>(key, value))) {
+          state.position++;
+          state.values.add(value);
+          store.put(key, objectMapper.writeValueAsString(state));
+          if (state.position == elements.size()) {
+            // last element. Match found. Start from scratch.
+            store.put(key, null);
+            // positive element matched. End of sequence reached.
+            // Emit the match downstream.
+            return new KeyValue<>(key, objectMapper.writeValueAsString(state));
+          }
+          // positive element matched, but end of sequence was not reached.
+          return null;
+        }
+        // positive element did not match. Position is not advanced.
+        return null;
+      }
+    } catch (Exception e) {
       e.printStackTrace();
       return null;
     }
@@ -175,9 +230,15 @@ class SequenceTransformer implements Transformer<String, String, KeyValue<String
 
 class SequenceTransformerSupplier implements TransformerSupplier<String, String, KeyValue<String,String>> {
 
+  private final List<SeqElement> elements;
+
+  public SequenceTransformerSupplier(List<SeqElement> elements) {
+    this.elements = elements;
+  }
+
   @Override
   public Transformer<String, String, KeyValue<String, String>> get() {
-    return new SequenceTransformer();
+    return new SequenceTransformer(elements);
   }
 }
 
