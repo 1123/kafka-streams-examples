@@ -15,7 +15,6 @@
  */
 package io.confluent.examples.streams;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.confluent.common.utils.TestUtils;
 import lombok.*;
@@ -25,9 +24,10 @@ import org.apache.kafka.streams.KafkaStreams;
 import org.apache.kafka.streams.KeyValue;
 import org.apache.kafka.streams.StreamsBuilder;
 import org.apache.kafka.streams.StreamsConfig;
-import org.apache.kafka.streams.kstream.*;
+import org.apache.kafka.streams.kstream.KStream;
+import org.apache.kafka.streams.kstream.Transformer;
+import org.apache.kafka.streams.kstream.TransformerSupplier;
 import org.apache.kafka.streams.processor.ProcessorContext;
-import org.apache.kafka.streams.processor.StateStore;
 import org.apache.kafka.streams.state.KeyValueStore;
 import org.apache.kafka.streams.state.internals.KeyValueStoreBuilder;
 import org.apache.kafka.streams.state.internals.RocksDbKeyValueBytesStoreSupplier;
@@ -37,7 +37,6 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Properties;
 import java.util.function.Function;
-import java.util.regex.Pattern;
 
 /**
  */
@@ -130,6 +129,8 @@ class SeqElement {
 
 @Data
 @NoArgsConstructor
+@AllArgsConstructor
+@EqualsAndHashCode
 class SequenceState {
 
   int position = 0;
@@ -137,6 +138,7 @@ class SequenceState {
   List<String> values = new ArrayList<>();
 
 }
+
 class SequenceTransformer implements Transformer<String, String, KeyValue<String, String>> {
 
   private final List<SeqElement> elements;

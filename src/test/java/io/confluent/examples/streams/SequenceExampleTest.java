@@ -25,13 +25,14 @@ import org.junit.Before;
 import org.junit.Test;
 
 import java.time.Instant;
+import java.util.Arrays;
 
 import static org.junit.Assert.*;
 
 /**
- * Stream processing unit test of {@link WordCountLambdaExample}, using TopologyTestDriver.
+ * Stream processing unit test of {@link SequenceExample}, using TopologyTestDriver.
  *
- * See {@link WordCountLambdaExample} for further documentation.
+ * See {@link SequenceExample} for further documentation.
  */
 @Slf4j
 public class SequenceExampleTest {
@@ -81,8 +82,52 @@ public class SequenceExampleTest {
     ObjectMapper objectMapper = new ObjectMapper();
     SequenceState sequenceState = objectMapper.readValue(keyValue.value, SequenceState.class);
     log.info(objectMapper.writeValueAsString(sequenceState));
-    // assertEquals(new SensorData(1000L, 0L, 2000L), sensorData);
+    assertEquals(
+            new SequenceState(
+                    3,
+                    2000L,
+                    Arrays.asList("SHELF", "NEGATED ELEMENT -- NO MATCH", "EXIT")
+            ), sequenceState
+    );
   }
+
+  /**
+   *  Test detection of shop lifting.
+   */
+  @Test
+  public void testDetectionOfParallelShopLifting() throws JsonProcessingException {
+    inputTopic.pipeInput("1", "SHELF", Instant.ofEpochMilli(1000L));
+    inputTopic.pipeInput("2", "SHELF", Instant.ofEpochMilli(2000L));
+    inputTopic.pipeInput("3", "COUNTER", Instant.ofEpochMilli(3000L));
+    inputTopic.pipeInput("2", "EXIT", Instant.ofEpochMilli(3000L));
+    inputTopic.pipeInput("3", "COUNTER", Instant.ofEpochMilli(3000L));
+    inputTopic.pipeInput("1", "EXIT", Instant.ofEpochMilli(4000L));
+    KeyValue<String, String> keyValue = outputTopic.readKeyValue();
+    assertEquals("2", keyValue.key);
+    ObjectMapper objectMapper = new ObjectMapper();
+    SequenceState sequenceState = objectMapper.readValue(keyValue.value, SequenceState.class);
+    log.info(objectMapper.writeValueAsString(sequenceState));
+    assertEquals(
+            new SequenceState(
+                    3,
+                    3000L,
+                    Arrays.asList("SHELF", "NEGATED ELEMENT -- NO MATCH", "EXIT")
+            ), sequenceState
+    );
+    keyValue = outputTopic.readKeyValue();
+    assertEquals("1", keyValue.key);
+    sequenceState = objectMapper.readValue(keyValue.value, SequenceState.class);
+    log.info(objectMapper.writeValueAsString(sequenceState));
+    assertEquals(
+            new SequenceState(
+                    3,
+                    4000L,
+                    Arrays.asList("SHELF", "NEGATED ELEMENT -- NO MATCH", "EXIT")
+            ), sequenceState
+    );
+    assertTrue(outputTopic.isEmpty());
+  }
+
 
   /**
    *  Test a valid checkout. No shop lifting should be detected.
