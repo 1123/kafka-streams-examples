@@ -12,7 +12,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.confluent.examples.streams;
+package io.confluent.examples.streams.sequences;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -39,7 +39,7 @@ public class SequenceExampleTest {
 
   private TopologyTestDriver testDriver;
   private TestInputTopic<String, String> inputTopic;
-  private TestOutputTopic<String, String> outputTopic;
+  private TestOutputTopic<String, SequenceState<String>> outputTopic;
 
   private final StringSerializer stringSerializer = new StringSerializer();
   private final StringDeserializer stringDeserializer = new StringDeserializer();
@@ -48,13 +48,13 @@ public class SequenceExampleTest {
   public void setup() {
     final StreamsBuilder builder = new StreamsBuilder();
     SequenceExample.createTopology(builder);
-    testDriver = new TopologyTestDriver(builder.build(), SequenceExample.getStreamsConfiguration("localhost:9092"));
+    testDriver = new TopologyTestDriver(builder.build(), SequenceExample.getStreamsConfiguration());
     inputTopic = testDriver.createInputTopic(SequenceExample.inputTopic,
                                              stringSerializer,
                                              stringSerializer);
     outputTopic = testDriver.createOutputTopic(SequenceExample.outputTopic,
                                                stringDeserializer,
-                                               stringDeserializer);
+                                               new MySequenceStateDeserializer<>());
   }
 
   @After
@@ -77,16 +77,16 @@ public class SequenceExampleTest {
     assertTrue(outputTopic.isEmpty());
     inputTopic.pipeInput("1", "EXIT", Instant.ofEpochMilli(2000L));
     assertFalse(outputTopic.isEmpty());
-    final KeyValue<String, String> keyValue = outputTopic.readKeyValue();
+    final KeyValue<String, SequenceState<String>> keyValue = outputTopic.readKeyValue();
     assertEquals("1", keyValue.key);
     ObjectMapper objectMapper = new ObjectMapper();
-    SequenceState sequenceState = objectMapper.readValue(keyValue.value, SequenceState.class);
+    SequenceState<String> sequenceState = keyValue.value;
     log.info(objectMapper.writeValueAsString(sequenceState));
     assertEquals(
-            new SequenceState(
+            new SequenceState<>(
                     3,
                     2000L,
-                    Arrays.asList("SHELF", "NEGATED ELEMENT -- NO MATCH", "EXIT")
+                    Arrays.asList("SHELF", null, "EXIT")
             ), sequenceState
     );
   }
@@ -102,28 +102,26 @@ public class SequenceExampleTest {
     inputTopic.pipeInput("2", "EXIT", Instant.ofEpochMilli(3000L));
     inputTopic.pipeInput("3", "COUNTER", Instant.ofEpochMilli(3000L));
     inputTopic.pipeInput("1", "EXIT", Instant.ofEpochMilli(4000L));
-    KeyValue<String, String> keyValue = outputTopic.readKeyValue();
+    KeyValue<String, SequenceState<String>> keyValue = outputTopic.readKeyValue();
     assertEquals("2", keyValue.key);
     ObjectMapper objectMapper = new ObjectMapper();
-    SequenceState sequenceState = objectMapper.readValue(keyValue.value, SequenceState.class);
-    log.info(objectMapper.writeValueAsString(sequenceState));
+    log.info(objectMapper.writeValueAsString(keyValue.value));
     assertEquals(
-            new SequenceState(
+            new SequenceState<>(
                     3,
                     3000L,
-                    Arrays.asList("SHELF", "NEGATED ELEMENT -- NO MATCH", "EXIT")
-            ), sequenceState
+                    Arrays.asList("SHELF", null, "EXIT")
+            ), keyValue.value
     );
     keyValue = outputTopic.readKeyValue();
     assertEquals("1", keyValue.key);
-    sequenceState = objectMapper.readValue(keyValue.value, SequenceState.class);
-    log.info(objectMapper.writeValueAsString(sequenceState));
+    log.info(objectMapper.writeValueAsString(keyValue.value));
     assertEquals(
-            new SequenceState(
+            new SequenceState<>(
                     3,
                     4000L,
-                    Arrays.asList("SHELF", "NEGATED ELEMENT -- NO MATCH", "EXIT")
-            ), sequenceState
+                    Arrays.asList("SHELF", null, "EXIT")
+            ), keyValue.value
     );
     assertTrue(outputTopic.isEmpty());
   }
