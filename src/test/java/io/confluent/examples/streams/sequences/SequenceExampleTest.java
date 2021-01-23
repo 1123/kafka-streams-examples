@@ -54,7 +54,7 @@ public class SequenceExampleTest {
                                              stringSerializer);
     outputTopic = testDriver.createOutputTopic(SequenceExample.outputTopic,
                                                stringDeserializer,
-                                               new MySequenceStateDeserializer<>());
+                                               new MySequenceStateSerde<String>().deserializer());
   }
 
   @After

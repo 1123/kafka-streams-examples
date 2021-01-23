@@ -58,7 +58,7 @@ public class SequenceExample {
    *
    * @return Properties getStreamsConfiguration
    */
-  static Properties getStreamsConfiguration() {
+  public static Properties getStreamsConfiguration() {
     final Properties streamsConfiguration = new Properties();
     // Give the Streams application a unique name.  The name must be unique in the Kafka cluster
     // against which the application is run.
