@@ -1,17 +1,10 @@
 package io.confluent.examples.streams.sequences;
 
-import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import io.confluent.examples.streams.shoplifting.SensorReading;
 import lombok.SneakyThrows;
 import org.apache.kafka.common.serialization.Deserializer;
 import org.apache.kafka.common.serialization.Serde;
 import org.apache.kafka.common.serialization.Serializer;
-import scala.collection.Seq;
-
-import java.io.IOException;
-import java.lang.reflect.Type;
-import java.util.List;
 
 public class SequenceStateSerde<T> implements Serde<SequenceState<T>> {
 

@@ -46,7 +46,6 @@
     <properties>
         <kafka.version>2.7.0</kafka.version>
         <algebird.version>0.13.7</algebird.version>
-        <avro.version>1.9.1</avro.version>
         <chill.version>0.9.5</chill.version>
         <docker.skip-build>false</docker.skip-build>
         <docker.skip-test>false</docker.skip-test>
@@ -80,67 +79,6 @@
             <artifactId>kafka-streams</artifactId>
             <version>${kafka.version}</version>
         </dependency>
-        <dependency>
-            <groupId>org.apache.kafka</groupId>
-            <artifactId>kafka-streams-scala_${kafka.scala.version}</artifactId>
-            <version>${kafka.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>org.apache.avro</groupId>
-            <artifactId>avro</artifactId>
-            <version>${avro.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>org.apache.avro</groupId>
-            <artifactId>avro-maven-plugin</artifactId>
-            <version>${avro.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>commons-cli</groupId>
-            <artifactId>commons-cli</artifactId>
-            <version>1.4</version>
-        </dependency>
-        <dependency>
-            <groupId>org.scala-lang</groupId>
-            <artifactId>scala-library</artifactId>
-            <!-- This version must be compatible with the Scala version of the Kafka dependency. -->
-            <version>${scala.version}</version>
-        </dependency>
-        <dependency>
-            <!-- This could be a test-only dependency, but we keep it a compile dependency so that
-                 users are able to package the examples via `mvn package` and actually run the examples
-                 against a Kafka cluster. -->
-            <groupId>com.101tec</groupId>
-            <artifactId>zkclient</artifactId>
-            <version>0.9</version>
-        </dependency>
-        <dependency>
-            <groupId>org.slf4j</groupId>
-            <artifactId>slf4j-log4j12</artifactId>
-            <version>1.7.30</version>
-        </dependency>
-        <!-- Use a repackaged version of log4j with security patches. Default log4j v1.2 is a transitive dependency of slf4j-log4j12, but it is excluded in common/pom.xml -->
-        <dependency>
-            <groupId>io.confluent</groupId>
-            <artifactId>confluent-log4j</artifactId>
-            <version>1.2.17-cp2</version>
-        </dependency>
-        <dependency>
-            <groupId>javax.ws.rs</groupId>
-            <artifactId>javax.ws.rs-api</artifactId>
-            <version>2.1</version>
-        </dependency>
-
-        <dependency>
-            <groupId>com.twitter</groupId>
-            <artifactId>algebird-core_${kafka.scala.version}</artifactId>
-            <version>${algebird.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>com.twitter</groupId>
-            <artifactId>chill_${kafka.scala.version}</artifactId>
-            <version>${chill.version}</version>
-        </dependency>
 
         <!-- Test dependencies -->
         <dependency>
@@ -150,107 +88,14 @@
             <scope>test</scope>
         </dependency>
         <dependency>
-            <groupId>org.junit.jupiter</groupId>
-            <artifactId>junit-jupiter-api</artifactId>
-            <version>5.7.0</version>
-            <scope>test</scope>
-        </dependency>
-        <dependency>
-            <groupId>org.assertj</groupId>
-            <artifactId>assertj-core</artifactId>
-            <version>3.3.0</version>
-            <scope>test</scope>
-        </dependency>
-        <dependency>
-            <groupId>org.mockito</groupId>
-            <artifactId>mockito-core</artifactId>
-            <version>2.7.14</version>
-        </dependency>
-        <dependency>
-            <groupId>org.apache.kafka</groupId>
-            <artifactId>kafka_${kafka.scala.version}</artifactId>
-            <version>${kafka.version}</version>
-            <scope>test</scope>
-        </dependency>
-        <dependency>
-            <groupId>org.apache.kafka</groupId>
-            <artifactId>kafka_${kafka.scala.version}</artifactId>
-            <version>${kafka.version}</version>
-            <classifier>test</classifier>
-            <scope>test</scope>
-        </dependency>
-        <dependency>
             <groupId>org.apache.kafka</groupId>
             <artifactId>kafka-streams-test-utils</artifactId>
             <version>${kafka.version}</version>
             <scope>test</scope>
         </dependency>
-        <dependency>
-            <groupId>org.apache.kafka</groupId>
-            <artifactId>kafka-clients</artifactId>
-            <version>${kafka.version}</version>
-            <classifier>test</classifier>
-            <scope>test</scope>
-        </dependency>
-        <dependency>
-            <groupId>org.apache.kafka</groupId>
-            <artifactId>kafka-streams</artifactId>
-            <version>${kafka.version}</version>
-            <classifier>test</classifier>
-            <scope>test</scope>
-        </dependency>
-        <dependency>
-            <groupId>org.apache.curator</groupId>
-            <artifactId>curator-test</artifactId>
-            <version>2.9.0</version>
-            <scope>test</scope>
-        </dependency>
-
-        <!-- The following dependencies on ScalaTest are only required for the Scala tests
-             under src/test/scala/.  They are not required for Java code/tests.
-        -->
-        <dependency>
-            <!-- This is a compile-time dependency but included only for scalatest below,
-                 so still list it under test dependencies. -->
-            <groupId>org.scalactic</groupId>
-            <artifactId>scalactic_${kafka.scala.version}</artifactId>
-            <version>${scalatest.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>org.scalatest</groupId>
-            <artifactId>scalatest_${kafka.scala.version}</artifactId>
-            <version>${scalatest.version}</version>
-            <scope>test</scope>
-        </dependency>
-        <dependency>
-            <groupId>org.scalatestplus</groupId>
-            <artifactId>junit-4-12_2.13</artifactId>
-            <version>3.1.2.0</version>
-            <scope>test</scope>
-        </dependency>
-        <dependency>
-            <groupId>org.scalatestplus</groupId>
-            <artifactId>scalatestplus-mockito_2.13</artifactId>
-            <version>1.0.0-M2</version>
-            <scope>test</scope>
-        </dependency>
     </dependencies>
 
     <build>
-
-        <pluginManagement>
-            <plugins>
-                <plugin>
-                    <groupId>net.alchim31.maven</groupId>
-                    <artifactId>scala-maven-plugin</artifactId>
-                    <version>3.2.1</version>
-                    <configuration>
-                        <scalaCompatVersion>${kafka.scala.version}</scalaCompatVersion>
-                        <scalaVersion>${scala.version}</scalaVersion>
-                    </configuration>
-                </plugin>
-            </plugins>
-        </pluginManagement>
 
         <plugins>
 
@@ -303,29 +148,6 @@
                 <configuration>
                     <forkCount>1</forkCount>
                     <reuseForks>false</reuseForks>
-                </configuration>
-            </plugin>
-
-            <plugin>
-                <!--
-                   See https://wiki.jasig.org/display/LIC/maven-notice-plugin
-                   In a nutshell: `mvn notice:check` and `mvn notice:generate`
-                -->
-                <groupId>org.jasig.maven</groupId>
-                <artifactId>maven-notice-plugin</artifactId>
-                <version>1.0.6.1</version>
-                <configuration>
-                    <licenseMapping>
-                        <param>../license-mappings.xml</param>
-                    </licenseMapping>
-                </configuration>
-            </plugin>
-
-            <plugin>
-                <groupId>com.github.spotbugs</groupId>
-                <artifactId>spotbugs-maven-plugin</artifactId>
-                <configuration>
-                    <skip>true</skip>
                 </configuration>
             </plugin>
 
