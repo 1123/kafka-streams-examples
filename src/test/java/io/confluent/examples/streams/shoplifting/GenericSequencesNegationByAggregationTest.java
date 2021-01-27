@@ -17,9 +17,7 @@ package io.confluent.examples.streams.shoplifting;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import io.confluent.examples.streams.sequences.SequenceExample;
 import io.confluent.examples.streams.sequences.SequenceState;
-import io.confluent.examples.streams.sequences.SequenceStateSerde;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.kafka.common.serialization.Deserializer;
@@ -34,7 +32,6 @@ import java.io.IOException;
 import java.lang.reflect.Type;
 import java.time.Instant;
 import java.util.Arrays;
-import java.util.List;
 
 import static org.junit.Assert.*;
 

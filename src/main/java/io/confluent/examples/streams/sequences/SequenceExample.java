@@ -15,7 +15,6 @@
  */
 package io.confluent.examples.streams.sequences;
 
-import io.confluent.common.utils.TestUtils;
 import org.apache.kafka.common.serialization.Serdes;
 import org.apache.kafka.common.utils.Time;
 import org.apache.kafka.streams.KafkaStreams;
@@ -75,7 +74,6 @@ public class SequenceExample {
     // For illustrative purposes we disable record caches.
     streamsConfiguration.put(StreamsConfig.CACHE_MAX_BYTES_BUFFERING_CONFIG, 0);
     // Use a temporary directory for storing state, which will be automatically removed after the test.
-    streamsConfiguration.put(StreamsConfig.STATE_DIR_CONFIG, TestUtils.tempDirectory().getAbsolutePath());
     return streamsConfiguration;
   }
 
