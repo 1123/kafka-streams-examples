@@ -1,20 +1,23 @@
 package io.confluent.examples.streams.sequences;
 
-import lombok.AllArgsConstructor;
-import lombok.Data;
-import lombok.EqualsAndHashCode;
-import lombok.NoArgsConstructor;
+import lombok.*;
 
 import java.util.ArrayList;
 import java.util.List;
 
-@Data
 @NoArgsConstructor
 @AllArgsConstructor
 @EqualsAndHashCode
+@Data
 public class SequenceState<V> {
 
     int position = 0;
     long timestamp;
+    boolean matched = false;
     List<V> values = new ArrayList<>();
+
+    public void advance(int i) {
+        this.position += i;
+    }
+
 }

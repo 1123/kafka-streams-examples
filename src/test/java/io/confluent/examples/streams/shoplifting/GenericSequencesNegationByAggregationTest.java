@@ -15,9 +15,14 @@
 package io.confluent.examples.streams.shoplifting;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.confluent.examples.streams.sequences.SequenceExample;
+import io.confluent.examples.streams.sequences.SequenceState;
+import io.confluent.examples.streams.sequences.SequenceStateSerde;
+import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.kafka.common.serialization.Deserializer;
 import org.apache.kafka.common.serialization.StringDeserializer;
 import org.apache.kafka.common.serialization.StringSerializer;
 import org.apache.kafka.streams.*;
@@ -25,6 +30,8 @@ import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 
+import java.io.IOException;
+import java.lang.reflect.Type;
 import java.time.Instant;
 import java.util.Arrays;
 import java.util.List;
@@ -32,11 +39,11 @@ import java.util.List;
 import static org.junit.Assert.*;
 
 @Slf4j
-public class ShopLiftingAggregationExampleTest {
+public class GenericSequencesNegationByAggregationTest {
 
   private TopologyTestDriver testDriver;
   private TestInputTopic<String, SensorReading> inputTopic;
-  private TestOutputTopic<String, List<SensorReading>> outputTopic;
+  private TestOutputTopic<String, SequenceState<SensorReading>> outputTopic;
 
   private final StringSerializer stringSerializer = new StringSerializer();
   private final StringDeserializer stringDeserializer = new StringDeserializer();
@@ -44,20 +51,20 @@ public class ShopLiftingAggregationExampleTest {
   @Before
   public void setup() {
     final StreamsBuilder builder = new StreamsBuilder();
-    ShopLiftingAggregationExample.createTopology(builder);
+    GenericSequencesNegationByAggregationExample.createTopology(builder);
     Topology topology = builder.build();
     System.err.println(topology.describe());
-    // TODO: streamsconfiguration should not be taken from teh SequenceExample.
-    testDriver = new TopologyTestDriver(topology, SequenceExample.getStreamsConfiguration());
+    testDriver = new TopologyTestDriver(topology, GenericSequencesNegationByAggregationExample.streamsConfiguration());
     inputTopic = testDriver.createInputTopic(
             ShopLiftingJoinExample.SENSOR_READINGS,
             stringSerializer,
-            new SensorReadingSerde().serializer());
+            new SensorReadingSerde().serializer()
+    );
     outputTopic = testDriver.createOutputTopic(
             ShopLiftingJoinExample.SHOPLIFTS,
             stringDeserializer,
-            new SensorReadingListDeserializer()
-            );
+            new MyDeserializer()
+    );
   }
 
   @After
@@ -80,16 +87,17 @@ public class ShopLiftingAggregationExampleTest {
     assertTrue(outputTopic.isEmpty());
     inputTopic.pipeInput("1", new SensorReading("EXIT", 2000L), Instant.ofEpochMilli(2000L));
     assertFalse(outputTopic.isEmpty());
-    final KeyValue<String, List<SensorReading>> keyValue = outputTopic.readKeyValue();
+    final KeyValue<String, SequenceState<SensorReading>> keyValue = outputTopic.readKeyValue();
     assertEquals("1", keyValue.key);
     ObjectMapper objectMapper = new ObjectMapper();
     log.info(objectMapper.writeValueAsString(keyValue.value));
     assertEquals(
             Arrays.asList(
                     new SensorReading("SHELF", 1000L),
+                    null,
                     new SensorReading("EXIT", 2000L)
             ),
-            keyValue.value
+            keyValue.value.getValues()
     );
     assertTrue(outputTopic.isEmpty());
   }
@@ -112,16 +120,17 @@ public class ShopLiftingAggregationExampleTest {
     inputTopic.pipeInput("2", new SensorReading("EXIT", 3000L), Instant.ofEpochMilli(3000L));
     inputTopic.pipeInput("3", new SensorReading("COUNTER", 3000L), Instant.ofEpochMilli(3000L));
     inputTopic.pipeInput("1", new SensorReading("EXIT", 4000L), Instant.ofEpochMilli(4000L));
-    KeyValue<String, List<SensorReading>> keyValue = outputTopic.readKeyValue();
+    KeyValue<String, SequenceState<SensorReading>> keyValue = outputTopic.readKeyValue();
     assertEquals("2", keyValue.key);
     ObjectMapper objectMapper = new ObjectMapper();
     log.info(objectMapper.writeValueAsString(keyValue.value));
     assertEquals(
             Arrays.asList(
                     new SensorReading("SHELF", 2000L),
+                    null,
                     new SensorReading("EXIT", 3000L)
             ),
-            keyValue.value
+            keyValue.value.getValues()
     );
     keyValue = outputTopic.readKeyValue();
     assertEquals("1", keyValue.key);
@@ -129,11 +138,37 @@ public class ShopLiftingAggregationExampleTest {
     assertEquals(
             Arrays.asList(
                     new SensorReading("SHELF", 1000L),
+                    null,
                     new SensorReading("EXIT", 4000L)
             ),
-            keyValue.value
+            keyValue.value.getValues()
     );
     assertTrue(outputTopic.isEmpty());
+  }
+
+}
+
+class MyDeserializer implements Deserializer<SequenceState<SensorReading>> {
+
+  ObjectMapper objectMapper = new ObjectMapper();
+
+  @SneakyThrows
+  @Override
+  public SequenceState<SensorReading> deserialize(String topic, byte[] data) {
+    TypeReference<SequenceState<SensorReading>> sensorReadingListTypeReference =
+            new TypeReference<SequenceState<SensorReading>>() {
+              @Override
+              public Type getType() {
+                return super.getType();
+              }
+            };
+
+    try {
+      return objectMapper.readValue(data, sensorReadingListTypeReference);
+    } catch (IOException e) {
+      e.printStackTrace();
+    }
+    return null;
   }
 
 }

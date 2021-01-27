@@ -54,7 +54,7 @@ public class SequenceExampleTest {
                                              stringSerializer);
     outputTopic = testDriver.createOutputTopic(SequenceExample.SHOPLIFTS_TOPIC,
                                                stringDeserializer,
-                                               new MySequenceStateSerde<String>().deserializer());
+                                               new SequenceStateSerde<String>().deserializer());
   }
 
   @After
@@ -86,6 +86,7 @@ public class SequenceExampleTest {
             new SequenceState<>(
                     3,
                     2000L,
+                    false,
                     Arrays.asList("SHELF", null, "EXIT")
             ), sequenceState
     );
@@ -110,6 +111,7 @@ public class SequenceExampleTest {
             new SequenceState<>(
                     3,
                     3000L,
+                    false,
                     Arrays.asList("SHELF", null, "EXIT")
             ), keyValue.value
     );
@@ -120,6 +122,7 @@ public class SequenceExampleTest {
             new SequenceState<>(
                     3,
                     4000L,
+                    false,
                     Arrays.asList("SHELF", null, "EXIT")
             ), keyValue.value
     );

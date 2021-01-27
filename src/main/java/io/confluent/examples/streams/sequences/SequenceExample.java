@@ -89,7 +89,7 @@ public class SequenceExample {
             new KeyValueStoreBuilder<String, SequenceState<String>>(
                     new RocksDbKeyValueBytesStoreSupplier("sensor-readings", true),
                     new Serdes.StringSerde(),
-                    new MySequenceStateSerde<>(),
+                    new SequenceStateSerde<>(),
                     Time.SYSTEM
             )
     );
@@ -105,7 +105,7 @@ public class SequenceExample {
                     )
             ), "sensor-readings");
 
-    shoplifts.to(SHOPLIFTS_TOPIC, Produced.with(new Serdes.StringSerde(), new MySequenceStateSerde<>()));
+    shoplifts.to(SHOPLIFTS_TOPIC, Produced.with(new Serdes.StringSerde(), new SequenceStateSerde<>()));
   }
 
 }

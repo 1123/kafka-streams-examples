@@ -99,20 +99,15 @@ public class ShopLiftingAggregationExample {
     if (sensorReading.type.equals("EXIT")) {
       if (aggregate.size() == 2 && aggregate.get(0).type.equals("SHELF") && aggregate.get(1).type.equals("COUNTER")) {
         aggregate.add(sensorReading);
-        log.info("valid checkout seen: {}", aggregate.toString());
-        return aggregate;
       } else {
         if (aggregate.size() == 1 && aggregate.get(0).type.equals("SHELF")) {
           aggregate.add(sensorReading);
           log.info("Shoplifting detected: {}", aggregate.toString());
-          return aggregate;
         }
-        else {
-          // ignore the case where shoplifting has already been detected, a valid checkout has been detected,
-          // or an exit reading without a shelf reading.
-          return aggregate;
-        }
+        // ignore the case where shoplifting has already been detected, a valid checkout has been detected,
+        // or an exit reading without a shelf reading.
       }
+      return aggregate;
     }
     throw new RuntimeException(String.format("unexpected sensorReading: %s", sensorReading));
   }
