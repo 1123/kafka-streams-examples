@@ -49,10 +49,10 @@ public class SequenceExampleTest {
     final StreamsBuilder builder = new StreamsBuilder();
     SequenceExample.createTopology(builder);
     testDriver = new TopologyTestDriver(builder.build(), SequenceExample.getStreamsConfiguration());
-    inputTopic = testDriver.createInputTopic(SequenceExample.inputTopic,
+    inputTopic = testDriver.createInputTopic(SequenceExample.SENSOR_READINGS_TOPIC,
                                              stringSerializer,
                                              stringSerializer);
-    outputTopic = testDriver.createOutputTopic(SequenceExample.outputTopic,
+    outputTopic = testDriver.createOutputTopic(SequenceExample.SHOPLIFTS_TOPIC,
                                                stringDeserializer,
                                                new MySequenceStateSerde<String>().deserializer());
   }

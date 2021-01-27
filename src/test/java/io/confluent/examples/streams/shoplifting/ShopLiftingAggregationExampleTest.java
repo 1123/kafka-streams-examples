@@ -17,7 +17,6 @@ package io.confluent.examples.streams.shoplifting;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.confluent.examples.streams.sequences.SequenceExample;
-import io.confluent.examples.streams.sequences.SequenceState;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.kafka.common.serialization.StringDeserializer;
 import org.apache.kafka.common.serialization.StringSerializer;
@@ -33,7 +32,7 @@ import java.util.List;
 import static org.junit.Assert.*;
 
 @Slf4j
-public class ShopLiftingExampleTest {
+public class ShopLiftingAggregationExampleTest {
 
   private TopologyTestDriver testDriver;
   private TestInputTopic<String, SensorReading> inputTopic;
@@ -45,14 +44,16 @@ public class ShopLiftingExampleTest {
   @Before
   public void setup() {
     final StreamsBuilder builder = new StreamsBuilder();
-    ShopLiftingExample.createTopology(builder);
-    testDriver = new TopologyTestDriver(builder.build(), SequenceExample.getStreamsConfiguration());
+    ShopLiftingAggregationExample.createTopology(builder);
+    Topology topology = builder.build();
+    System.err.println(topology.describe());
+    testDriver = new TopologyTestDriver(topology, SequenceExample.getStreamsConfiguration());
     inputTopic = testDriver.createInputTopic(
-            ShopLiftingExample.SENSOR_READINGS,
+            ShopLiftingJoinExample.SENSOR_READINGS,
             stringSerializer,
             new SensorReadingSerde().serializer());
     outputTopic = testDriver.createOutputTopic(
-            ShopLiftingExample.SHOPLIFTS,
+            ShopLiftingJoinExample.SHOPLIFTS,
             stringDeserializer,
             new SensorReadingListDeserializer()
             );
@@ -133,6 +134,5 @@ public class ShopLiftingExampleTest {
     );
     assertTrue(outputTopic.isEmpty());
   }
-
 
 }

@@ -33,8 +33,8 @@ import java.util.Properties;
  */
 public class SequenceExample {
 
-  static final String inputTopic = "streams-plaintext-input";
-  static final String outputTopic = "streams-plaintext-output";
+  static final String SENSOR_READINGS_TOPIC = "sensor-readings";
+  static final String SHOPLIFTS_TOPIC = "shoplifts";
 
   /**
    * The Streams application as a whole can be launched like any normal Java application that has a `main()` method.
@@ -94,9 +94,9 @@ public class SequenceExample {
             )
     );
 
-    final KStream<String, String> textLines = builder.stream(inputTopic);
+    final KStream<String, String> readings = builder.stream(SENSOR_READINGS_TOPIC);
 
-    KStream<String, SequenceState<String>> transformed = textLines
+    KStream<String, SequenceState<String>> shoplifts = readings
             .transform(new SequenceTransformerSupplier<>(
                     Arrays.asList(
                             SeqElement.<String, String>builder().predicate(keyValue -> keyValue.value.equals("SHELF")).build(),
@@ -105,7 +105,7 @@ public class SequenceExample {
                     )
             ), "sensor-readings");
 
-    transformed.to(outputTopic, Produced.with(new Serdes.StringSerde(), new MySequenceStateSerde<>()));
+    shoplifts.to(SHOPLIFTS_TOPIC, Produced.with(new Serdes.StringSerde(), new MySequenceStateSerde<>()));
   }
 
 }

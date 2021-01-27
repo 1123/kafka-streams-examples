@@ -15,9 +15,8 @@
  */
 package io.confluent.examples.streams.shoplifting;
 
-import io.confluent.examples.streams.shoplifting.SensorReading;
-import io.confluent.examples.streams.shoplifting.SensorReadingSerde;
 import io.confluent.kafka.streams.serdes.avro.SpecificAvroSerde;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.common.serialization.Serdes;
 import org.apache.kafka.streams.KafkaStreams;
@@ -25,14 +24,10 @@ import org.apache.kafka.streams.StreamsBuilder;
 import org.apache.kafka.streams.StreamsConfig;
 import org.apache.kafka.streams.kstream.*;
 
-import java.time.Duration;
-import java.util.Arrays;
-import java.util.List;
-import java.util.Properties;
+import java.util.*;
 
-/**
- */
-public class ShopLiftingExample {
+@Slf4j
+public class ShopLiftingAggregationExample {
 
   public static final String SENSOR_READINGS = "SENSOR_READINGS";
   public static final String SHOPLIFTS = "SHOP_LIFTS";
@@ -72,37 +67,54 @@ public class ShopLiftingExample {
   public static void createTopology(StreamsBuilder builder) {
     final KStream<String, SensorReading> sensorReadings =
             builder.stream(SENSOR_READINGS, Consumed.with(new Serdes.StringSerde(), new SensorReadingSerde()));
-    KStream<String, SensorReading> shelfReadings = sensorReadings.filter((key, value) -> value.getType().equals("SHELF"));
-    KStream<String, SensorReading> counterReadings = sensorReadings.filter((key, value) -> value.getType().equals("COUNTER"));
-    KStream<String, SensorReading> exitReadings = sensorReadings.filter((key, value) -> value.getType().equals("EXIT"));
-    KStream<String, List<SensorReading>> shelfAndExitsStream =
-            shelfReadings.join(
-                    exitReadings,
-                    Arrays::asList,
-                    JoinWindows.of(Duration.ofMinutes(1)),
-                    StreamJoined.with(new Serdes.StringSerde(), new SensorReadingSerde(), new SensorReadingSerde())
-            );
-    KStream<String, List<SensorReading>> shelfAndCounterStream =
-            shelfReadings.join(
-                    counterReadings,
-                    Arrays::asList,
-                    JoinWindows.of(Duration.ofMinutes(1)),
-                    StreamJoined.with(new Serdes.StringSerde(), new SensorReadingSerde(), new SensorReadingSerde())
-            );
-    KStream<String, List<SensorReading>> shelfAndCounterAndExits = shelfAndExitsStream.leftJoin(
-            shelfAndCounterStream,
-            (v1, v2) -> {
-              if (v2 == null) {
-               return  Arrays.asList(v1.get(0), v1.get(1));
-              } else {
-                return Arrays.asList(v1.get(0), v1.get(1), v2.get(0), v2.get(1));
-              }
-            },
-            JoinWindows.of(Duration.ofMinutes(1)),
-            StreamJoined.with(new Serdes.StringSerde(), new SensorReadingListSerde(), new SensorReadingListSerde())
-    );
-    shelfAndCounterAndExits.filter((key,value) -> value.size() == 2)
-            .to(SHOPLIFTS, (Produced.with(new Serdes.StringSerde(), new SensorReadingListSerde())));
+    sensorReadings
+            .groupByKey(Grouped.with(new Serdes.StringSerde(), new SensorReadingSerde()))
+            .aggregate(
+              ArrayList::new,
+              ShopLiftingAggregationExample::transform,
+              Materialized.with(new Serdes.StringSerde(), new SensorReadingListSerde())
+            )
+            .toStream()
+            .filter((key, value) -> (
+                    value.size() == 2 &&
+                            value.get(0).type.equals("SHELF") &&
+                            value.get(1).type.equals("EXIT"))
+            )
+            .to(SHOPLIFTS);
+  }
+
+  public static List<SensorReading> transform(String key, SensorReading sensorReading, List<SensorReading> aggregate) {
+    if (sensorReading.type.equals("SHELF")) {
+      // multiple SHELF readings may occur. Only keep the last one.
+      return Collections.singletonList(sensorReading);
+    }
+    if (sensorReading.type.equals("COUNTER")) {
+      if (aggregate.size() == 1) {
+        // only keep the first COUNTER reading.
+        // TODO: maybe we should better keep the last, as for shelf readings?
+        aggregate.add(sensorReading);
+      }
+      return aggregate;
+    }
+    if (sensorReading.type.equals("EXIT")) {
+      if (aggregate.size() == 2 && aggregate.get(0).type.equals("SHELF") && aggregate.get(1).type.equals("COUNTER")) {
+        aggregate.add(sensorReading);
+        log.info("valid checkout seen: {}", aggregate.toString());
+        return aggregate;
+      } else {
+        if (aggregate.size() == 1 && aggregate.get(0).type.equals("SHELF")) {
+          aggregate.add(sensorReading);
+          log.info("Shoplifting detected: {}", aggregate.toString());
+          return aggregate;
+        }
+        else {
+          // ignore the case where shoplifting has already been detected, a valid checkout has been detected,
+          // or an exit reading without a shelf reading.
+          return aggregate;
+        }
+      }
+    }
+    throw new RuntimeException(String.format("unexpected sensorReading: %s", sensorReading));
   }
 }
 
