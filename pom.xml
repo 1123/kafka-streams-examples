@@ -105,8 +105,8 @@
                 <version>3.3</version>
                 <inherited>true</inherited>
                 <configuration>
-                    <source>${java.version}</source>
-                    <target>${java.version}</target>
+                    <source>10</source>
+                    <target>10</target>
                     <compilerArgs>
                         <arg>-Xlint:all</arg>
                         <!--TODO: enable this once we have warnings under control<arg>-Werror</arg>-->

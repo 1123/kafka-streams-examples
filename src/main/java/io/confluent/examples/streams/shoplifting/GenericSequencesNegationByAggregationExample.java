@@ -44,12 +44,9 @@ public class GenericSequencesNegationByAggregationExample {
             .aggregate(SequenceState::new,
                     new AggregateSequenceTransformer<>(
                             Arrays.asList(
-                                    SeqElement.<String, SensorReading>builder()
-                                            .predicate(keyValue -> keyValue.value.type.equals("SHELF")).build(),
-                                    SeqElement.<String, SensorReading>builder().predicate(
-                                            keyValue -> keyValue.value.type.equals("COUNTER")).negated(true).build(),
-                                    SeqElement.<String, SensorReading>builder().predicate(
-                                            keyValue -> keyValue.value.type.equals("EXIT")).build()
+                                    new SeqElement<>(false, keyValue -> keyValue.value.type.equals("SHELF")),
+                                    new SeqElement<>(true, keyValue -> keyValue.value.type.equals("COUNTER")),
+                                    new SeqElement<>(false, keyValue -> keyValue.value.type.equals("EXIT"))
                             )
                     ),
                     Materialized.with(new Serdes.StringSerde(), new SequenceStateSerde<>())
@@ -63,7 +60,6 @@ public class GenericSequencesNegationByAggregationExample {
 class AggregateSequenceTransformer<K,V> implements Aggregator<K, V, SequenceState<V>> {
 
   private final List<SeqElement<K, V>> elements;
-
   public AggregateSequenceTransformer(List<SeqElement<K,V>> elements) {
     this.elements = elements;
   }
@@ -73,7 +69,6 @@ class AggregateSequenceTransformer<K,V> implements Aggregator<K, V, SequenceStat
       Function<KeyValue<K, V>, Boolean> predicate = elements.get(state.getPosition()).getPredicate();
       if (elements.get(state.getPosition()).isNegated()) {
         if (predicate.apply(new KeyValue<>(key, value))) {
-          log.info("Negated element matched");
           return new SequenceState<>();
         }
         Function<KeyValue<K, V>, Boolean> nextPredicate = elements.get(state.getPosition() + 1).getPredicate();
@@ -84,22 +79,15 @@ class AggregateSequenceTransformer<K,V> implements Aggregator<K, V, SequenceStat
           if (state.getPosition() == elements.size()) {
             state.setMatched(true);
           }
-          // negated element did not match, but the following positive element matched;
         }
-        // negated element did not match, and the following positive element matched neither.
-        // position does not advance.
-      } else { // not negated
+      } else {
         if (predicate.apply(new KeyValue<>(key, value))) {
           state.advance(1);
           state.getValues().add(value);
           if (state.getPosition() == elements.size()) {
-            // last element. Match found. Start from scratch.
-            // positive element matched. End of sequence reached.
             state.setMatched(true);
           }
-          // positive element matched, but end of sequence was not reached.
         }
-        // positive element did not match. Position is not advanced.
       }
     return state;
   }
