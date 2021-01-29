@@ -34,38 +34,6 @@ public class ShopLiftingJoinExample {
   public static final String SENSOR_READINGS = "SENSOR_READINGS";
   public static final String SHOPLIFTS = "SHOP_LIFTS";
 
-  public static void main(final String[] args) {
-    StreamsBuilder builder = new StreamsBuilder();
-    createTopology(builder);
-    final KafkaStreams streams = new KafkaStreams(builder.build(), streamsConfiguration());
-    streams.cleanUp();
-    streams.start();
-
-    // Add shutdown hook to respond to SIGTERM and gracefully close Kafka Streams
-    Runtime.getRuntime().addShutdownHook(new Thread(streams::close));
-  }
-
-  private static Properties streamsConfiguration() {
-    final Properties streamsConfiguration = new Properties();
-    // Give the Streams application a unique name.  The name must be unique in the Kafka cluster
-    // against which the application is run.
-    streamsConfiguration.put(StreamsConfig.APPLICATION_ID_CONFIG, "wordcount-avro-lambda-example");
-    streamsConfiguration.put(StreamsConfig.CLIENT_ID_CONFIG, "wordcount-avro-lambda-example-client");
-    // Where to find Kafka broker(s).
-    streamsConfiguration.put(StreamsConfig.BOOTSTRAP_SERVERS_CONFIG, "localhost:9092");
-    // Where to find the Confluent schema registry instance(s)
-    // Specify default (de)serializers for record keys and for record values.
-    streamsConfiguration.put(StreamsConfig.DEFAULT_KEY_SERDE_CLASS_CONFIG, Serdes.String().getClass().getName());
-    streamsConfiguration.put(StreamsConfig.DEFAULT_VALUE_SERDE_CLASS_CONFIG, Serdes.String().getClass().getName());
-    streamsConfiguration.put(StreamsConfig.STATE_DIR_CONFIG, "/tmp/kafka-streams");
-    streamsConfiguration.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest");
-    // Records should be flushed every 10 seconds. This is less than the default
-    // in order to keep this example interactive.
-    streamsConfiguration.put(StreamsConfig.COMMIT_INTERVAL_MS_CONFIG, 10 * 1000);
-    return streamsConfiguration;
-
-  }
-
   public static void createTopology(StreamsBuilder builder) {
     final KStream<String, SensorReading> sensorReadings =
             builder.stream(SENSOR_READINGS, Consumed.with(new Serdes.StringSerde(), new SensorReadingSerde()));

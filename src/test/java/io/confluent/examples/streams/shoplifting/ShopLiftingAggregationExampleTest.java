@@ -16,7 +16,6 @@ package io.confluent.examples.streams.shoplifting;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import io.confluent.examples.streams.sequences.SequenceExample;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.kafka.common.serialization.StringDeserializer;
 import org.apache.kafka.common.serialization.StringSerializer;
@@ -48,7 +47,7 @@ public class ShopLiftingAggregationExampleTest {
     Topology topology = builder.build();
     System.err.println(topology.describe());
     // TODO: streamsconfiguration should not be taken from teh SequenceExample.
-    testDriver = new TopologyTestDriver(topology, SequenceExample.getStreamsConfiguration());
+    testDriver = new TopologyTestDriver(topology, TestUtils.streamsConfiguration());
     inputTopic = testDriver.createInputTopic(
             ShopLiftingJoinExample.SENSOR_READINGS,
             stringSerializer,

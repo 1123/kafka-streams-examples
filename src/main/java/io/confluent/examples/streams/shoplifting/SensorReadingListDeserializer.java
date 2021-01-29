@@ -2,8 +2,6 @@ package io.confluent.examples.streams.shoplifting;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import io.confluent.examples.streams.sequences.SequenceExample;
-import io.confluent.examples.streams.shoplifting.SensorReading;
 import org.apache.kafka.common.serialization.Deserializer;
 
 import java.io.IOException;

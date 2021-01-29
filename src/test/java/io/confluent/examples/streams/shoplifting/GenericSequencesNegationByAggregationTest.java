@@ -51,7 +51,7 @@ public class GenericSequencesNegationByAggregationTest {
     GenericSequencesNegationByAggregationExample.createTopology(builder);
     Topology topology = builder.build();
     System.err.println(topology.describe());
-    testDriver = new TopologyTestDriver(topology, GenericSequencesNegationByAggregationExample.streamsConfiguration());
+    testDriver = new TopologyTestDriver(topology, TestUtils.streamsConfiguration());
     inputTopic = testDriver.createInputTopic(
             ShopLiftingJoinExample.SENSOR_READINGS,
             stringSerializer,
